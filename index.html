@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Lot Sizer</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png" sizes="192x192">
+<meta name="theme-color" content="#0A0D12">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+:root{
+  --bg:#0A0D12; --panel:#10141C; --panel2:#161B26; --border:#232938;
+  --text:#E6E9EF; --muted:#78808F; --cyan:#4FD8C4; --amber:#E8A855;
+  --green:#3FBF7F; --red:#E5555F;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webkit-tap-highlight-color:transparent;}
+body{padding:16px;max-width:640px;margin:0 auto;padding-bottom:48px;}
+
+.eyebrow{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.14em;color:var(--muted);text-transform:uppercase;}
+h1{font-size:20px;font-weight:700;margin:2px 0 2px;letter-spacing:-.01em;}
+.subhead{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted);margin-bottom:16px;}
+
+.tabs{display:flex;gap:6px;margin-bottom:14px;border:1px solid var(--border);border-radius:9px;padding:4px;background:var(--panel);}
+.tab{flex:1;text-align:center;padding:9px 0;border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;letter-spacing:.03em;color:var(--muted);}
+.tab.active{background:var(--panel2);color:var(--cyan);}
+
+.card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:12px;}
+.card-title{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--cyan);margin-bottom:10px;}
+
+select,input{
+  width:100%;background:var(--panel2);border:1px solid var(--border);color:var(--text);
+  font-family:'JetBrains Mono',monospace;font-size:14px;padding:9px 10px;border-radius:7px;
+  -webkit-appearance:none;appearance:none;
+}
+select:focus,input:focus{outline:2px solid var(--cyan);outline-offset:-1px;border-color:var(--cyan);}
+
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;}
+.field label{display:block;font-size:11px;color:var(--muted);margin-bottom:5px;font-family:'JetBrains Mono',monospace;}
+.field{margin-bottom:10px;}
+
+.seg{display:flex;border:1px solid var(--border);border-radius:7px;overflow:hidden;}
+.seg button{flex:1;padding:9px 0;background:var(--panel2);color:var(--muted);border:none;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;}
+.seg button.active{background:rgba(79,216,196,.15);color:var(--cyan);}
+
+.output-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.out{background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;}
+.out .k{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;}
+.out .v{font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:700;}
+.out.wide{grid-column:1/-1;}
+.out.hero .v{font-size:22px;color:var(--cyan);}
+.out.warn .v{color:var(--amber);}
+
+.pane{display:none;}
+.pane.active{display:block;}
+
+.disclaimer{font-size:11px;color:var(--muted);line-height:1.5;padding:12px 4px 0;}
+</style>
+</head>
+<body>
+
+<div class="eyebrow">EEA / MiCA — RETAIL LEVERAGE CAPS APPLIED</div>
+<h1>Lot Sizer</h1>
+<div class="subhead">Lot size · pip value · margin</div>
+
+<div class="tabs">
+  <div class="tab active" id="tabLot" onclick="switchTab('lot')">LOT SIZE</div>
+  <div class="tab" id="tabPip" onclick="switchTab('pip')">PIP VALUE</div>
+  <div class="tab" id="tabMargin" onclick="switchTab('margin')">MARGIN</div>
+</div>
+
+<div class="card">
+  <div class="card-title">Instrument</div>
+  <select id="instrument"></select>
+  <div class="row" style="margin-top:10px;">
+    <div class="field"><label>Point size</label><input id="pt_point" type="number" step="any"></div>
+    <div class="field"><label>Max leverage (ratio)</label><input id="pt_lev" type="number"></div>
+  </div>
+</div>
+
+<!-- LOT SIZE -->
+<div class="pane active" id="pane-lot">
+  <div class="card">
+    <div class="card-title">Risk inputs</div>
+    <div class="row">
+      <div class="field"><label>Account balance ($)</label><input id="lot_balance" type="number" value="10000" inputmode="decimal"></div>
+      <div class="field"><label>Risk per trade</label>
+        <div class="seg">
+          <button id="riskPct" class="active" onclick="setRiskMode('pct')">%</button>
+          <button id="riskAmt" onclick="setRiskMode('amt')">$</button>
+        </div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="field"><label id="riskInputLabel">Risk %</label><input id="lot_risk" type="number" value="1" inputmode="decimal"></div>
+      <div class="field"><label>Stop-loss (points)</label><input id="lot_sl" type="number" value="20" inputmode="decimal"></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Result</div>
+    <div class="output-grid">
+      <div class="out hero wide"><div class="k">Recommended position size (units)</div><div class="v" id="lot_out_units">—</div></div>
+      <div class="out"><div class="k">Standard lots (÷100k, FX only)</div><div class="v" id="lot_out_lots">—</div></div>
+      <div class="out"><div class="k">Amount at risk</div><div class="v" id="lot_out_risk">—</div></div>
+      <div class="out wide"><div class="k">Point value at this size</div><div class="v" id="lot_out_pointval">—</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- PIP VALUE -->
+<div class="pane" id="pane-pip">
+  <div class="card">
+    <div class="card-title">Position</div>
+    <div class="field"><label>Position size (units)</label><input id="pip_units" type="number" value="100000" inputmode="decimal"></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Result</div>
+    <div class="output-grid">
+      <div class="out hero wide"><div class="k">Value per point move</div><div class="v" id="pip_out_val">—</div></div>
+      <div class="out wide"><div class="k">Value per 10-point move</div><div class="v" id="pip_out_val10">—</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- MARGIN -->
+<div class="pane" id="pane-margin">
+  <div class="card">
+    <div class="card-title">Position</div>
+    <div class="row">
+      <div class="field"><label>Position size (units)</label><input id="mg_units" type="number" value="100000" inputmode="decimal"></div>
+      <div class="field"><label>Entry price</label><input id="mg_price" type="number" inputmode="decimal"></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Result</div>
+    <div class="output-grid">
+      <div class="out hero wide"><div class="k">Required margin</div><div class="v" id="mg_out_margin">—</div></div>
+      <div class="out wide"><div class="k">Notional value</div><div class="v" id="mg_out_notional">—</div></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Reverse — max size for available margin</div>
+    <div class="field"><label>Available margin ($)</label><input id="mg_avail" type="number" value="1000" inputmode="decimal"></div>
+    <div class="output-grid" style="margin-top:10px;">
+      <div class="out warn wide"><div class="k">Max position size (units)</div><div class="v" id="mg_out_maxunits">—</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="disclaimer">
+  Point size and leverage cap are indicative defaults — edit them to match your broker's actual contract spec before sizing a real position. Assumes account currency = USD and instrument quoted directly in USD; non-USD-quote pairs (USD/JPY, USD/CHF, USD/CAD) need manual conversion. This tool performs arithmetic only — it is not trade advice.
+</div>
+
+<script>
+const INSTRUMENTS = {
+  fx: { label:"FX Majors", items:{
+    "EUR/USD":{point:0.0001,leverage:30}, "GBP/USD":{point:0.0001,leverage:30},
+    "USD/JPY":{point:0.01,leverage:30}, "USD/CHF":{point:0.0001,leverage:30},
+    "AUD/USD":{point:0.0001,leverage:30}, "USD/CAD":{point:0.0001,leverage:30},
+    "NZD/USD":{point:0.0001,leverage:30}
+  }},
+  metals: { label:"Metals", items:{ "XAU/USD":{point:0.01,leverage:20} }},
+  indices: { label:"Indices", items:{
+    "US500":{point:1,leverage:20}, "US30":{point:1,leverage:20},
+    "NAS100":{point:1,leverage:20}, "GER40":{point:1,leverage:20}, "UK100":{point:1,leverage:20}
+  }},
+  crypto: { label:"Crypto CFDs", items:{
+    "BTC/USD":{point:1,leverage:2}, "ETH/USD":{point:1,leverage:2},
+    "SOL/USD":{point:0.01,leverage:2}, "XRP/USD":{point:0.0001,leverage:2}
+  }}
+};
+const DEFAULT_PRICE = {
+  "EUR/USD":1.0850,"GBP/USD":1.2650,"USD/JPY":151.20,"USD/CHF":0.8850,"AUD/USD":0.6550,
+  "USD/CAD":1.3650,"NZD/USD":0.6050,"XAU/USD":2400,"US500":5450,"US30":39800,"NAS100":19200,
+  "GER40":18500,"UK100":8150,"BTC/USD":62000,"ETH/USD":3400,"SOL/USD":145,"XRP/USD":0.52
+};
+
+let riskMode = "pct";
+let currentTab = "lot";
+const $ = id => document.getElementById(id);
+
+function buildSelect(){
+  const sel = $("instrument");
+  Object.entries(INSTRUMENTS).forEach(([key, grp])=>{
+    const og = document.createElement("optgroup"); og.label = grp.label;
+    Object.keys(grp.items).forEach(sym=>{
+      const opt = document.createElement("option"); opt.value = sym; opt.textContent = sym;
+      og.appendChild(opt);
+    });
+    sel.appendChild(og);
+  });
+  sel.value = "EUR/USD";
+}
+function findSpec(sym){
+  for(const grp of Object.values(INSTRUMENTS)) if(grp.items[sym]) return grp.items[sym];
+}
+function loadSpec(sym){
+  const s = findSpec(sym);
+  $("pt_point").value = s.point;
+  $("pt_lev").value = s.leverage;
+  $("mg_price").value = DEFAULT_PRICE[sym] ?? "";
+}
+
+function switchTab(t){
+  currentTab = t;
+  ["lot","pip","margin"].forEach(k=>{
+    $("pane-"+k).className = "pane" + (k===t ? " active" : "");
+    $("tab"+k.charAt(0).toUpperCase()+k.slice(1)).className = "tab" + (k===t ? " active" : "");
+  });
+  calc();
+}
+function setRiskMode(m){
+  riskMode = m;
+  $("riskPct").className = m==="pct" ? "active" : "";
+  $("riskAmt").className = m==="amt" ? "active" : "";
+  $("riskInputLabel").textContent = m==="pct" ? "Risk %" : "Risk amount ($)";
+  calc();
+}
+
+function fmt(n, dp=2){
+  if(!isFinite(n)) return "—";
+  return n.toLocaleString(undefined,{minimumFractionDigits:dp, maximumFractionDigits:dp});
+}
+
+function calc(){
+  const point = parseFloat($("pt_point").value) || 0;
+  const lev = parseFloat($("pt_lev").value) || 1;
+
+  if(currentTab === "lot"){
+    const balance = parseFloat($("lot_balance").value) || 0;
+    const riskInput = parseFloat($("lot_risk").value) || 0;
+    const slPoints = parseFloat($("lot_sl").value) || 0;
+    const riskAmount = riskMode === "pct" ? balance * (riskInput/100) : riskInput;
+    const pointValuePerUnit = point;
+    const units = (slPoints > 0 && pointValuePerUnit > 0) ? riskAmount / (slPoints * pointValuePerUnit) : 0;
+    $("lot_out_units").textContent = fmt(units, 0);
+    $("lot_out_lots").textContent = fmt(units/100000, 3);
+    $("lot_out_risk").textContent = "$" + fmt(riskAmount);
+    $("lot_out_pointval").textContent = "$" + fmt(units * point, 4) + " / point";
+  }
+
+  if(currentTab === "pip"){
+    const units = parseFloat($("pip_units").value) || 0;
+    const val = units * point;
+    $("pip_out_val").textContent = "$" + fmt(val, 4);
+    $("pip_out_val10").textContent = "$" + fmt(val*10, 4);
+  }
+
+  if(currentTab === "margin"){
+    const units = parseFloat($("mg_units").value) || 0;
+    const price = parseFloat($("mg_price").value) || 0;
+    const notional = units * price;
+    const margin = notional / lev;
+    $("mg_out_margin").textContent = "$" + fmt(margin);
+    $("mg_out_notional").textContent = "$" + fmt(notional);
+    const avail = parseFloat($("mg_avail").value) || 0;
+    const maxUnits = price > 0 ? (avail * lev) / price : 0;
+    $("mg_out_maxunits").textContent = fmt(maxUnits, 0);
+  }
+}
+
+$("instrument").addEventListener("change", e=>{ loadSpec(e.target.value); calc(); });
+["pt_point","pt_lev","lot_balance","lot_risk","lot_sl","pip_units","mg_units","mg_price","mg_avail"]
+  .forEach(id=> $(id).addEventListener("input", calc));
+
+buildSelect();
+loadSpec("EUR/USD");
+calc();
+</script>
+</body>
+</html>
